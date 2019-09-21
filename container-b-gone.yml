@@ -1,0 +1,150 @@
+
+heat_template_version: 2015-10-15
+
+description: |
+   #### Creates 2 GB General Purpose cloud server
+   #### Installs/configures swiftly, then removes Cloud Files containers.
+   #### You must build in the same region as your Cloud Files containers.
+   #### Author: Brian King
+   #### version: 0.0.1a
+   #### last modified: 2019-09-21
+
+parameter_groups:
+
+- label: Contact info
+  parameters:
+    - emailAddr
+
+- label: Account info
+  parameters:
+    - rsUsername
+    - rsRegion
+    - rsApiKey
+
+- label: Container info
+  parameters:
+    - containersToDelete
+
+parameters:
+
+# begin contact info
+
+  emailAddr:
+    type: string
+    default: myemail@example.com
+    label: This email address receives container deletion notifications.
+
+# begin account info
+
+  rsUsername:
+    type: string
+    default: rsUsername
+    label: Your Rackspace Cloud username
+
+  rsRegion:
+    type: string
+    default: lon
+    label: Lower case Rackspace Cloud region which hosts containers you wish to delete.
+    constraints:
+      - allowed_values:
+        - dfw
+        - hkg
+        - iad
+        - lon
+        - ord
+        - syd
+
+  rsApiKey:
+    type: string
+    default: rsApiKey
+    label: "Your Rackspace Cloud API key, found under username > My Profile & Settings > Security Settings"
+
+# begin container info
+
+  containersToDelete:
+    type: comma_delimited_list
+    label: 'Enter at least 1 Cloud Files container to delete. Separate container names by comma'
+    default: 'myUnwantedContainer'
+
+resources:
+
+  serverPass:
+      type: OS::Heat::RandomString
+
+  stackSSHKey:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { get_param: "OS::stack_name" }
+      save_private_key: true
+
+  serverInstanceConfig:
+     type: OS::Heat::SoftwareConfig
+     properties:
+       group: swiftly
+       config:
+         str_replace:
+           params:
+             $rsUsername: { get_param: rsUsername }
+             $rsRegion: { get_param: rsRegion }
+             $rsApiKey: { get_param: rsApiKey }
+             $containersToDelete:  { get_param: containersToDelete }
+           template: |
+                      #!/bin/bash
+                      #container-b-gone.sh
+                      # installs/configures swiftly
+                      # then creates a screen session per container
+                      # and deletes them using swiftly commands
+                      # copyright 2019 Brian King
+                      # version: 0.0.1a
+                      # license: Apache
+
+                      yum -y install python-pip screen
+                      pip install swiftly eventlet
+
+                      cat > /root/.swiftly.conf << EOF
+                      [swiftly]
+                      auth_user = $rsUsername
+                      auth_key = $rsApiKey
+                      auth_url = https://identity.api.rackspacecloud.com/v2.0
+                      region = $rsRegion
+                      snet = True
+                      EOF
+
+                      cntrs_to_delete="$containersToDelete"
+
+                      IFS=","
+
+                      containers_array=( ${cntrs_to_delete} )
+
+                      printf "%s\n" "array slice ${containers_array[1]}" >> /root/containers_list
+
+
+  serverInstance:
+    type: OS::Nova::Server
+    properties:
+      name: 'swiftly-server'
+      image: 'CentOS 7 (PVHVM)'
+      admin_pass: { get_attr: [ serverPass, value ]}
+      key_name: { get_resource: stackSSHKey }
+      flavor: general1-2
+      config_drive: True
+      user_data: { get_resource: serverInstanceConfig }
+      metadata:
+        created_by: cn_swiftly_template
+      networks:
+        - network: '00000000-0000-0000-0000-000000000000'
+        - network: '11111111-1111-1111-1111-111111111111'
+
+outputs:
+
+  serverPassDisplay:
+    value: { get_attr: [ serverPass, value ] }
+    description: 'Admin Password of Swiftly Server'
+
+  stackPrivateSSHKey:
+    value: { get_attr: ['stackSSHKey', 'private_key'] }
+    description: 'private Key for accessing Swiftly Server'
+
+  containersToDeleteDisplay:
+    value: { get_param: containersToDelete }
+    description: 'containers specified to delete'
