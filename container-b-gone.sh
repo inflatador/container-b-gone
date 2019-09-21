@@ -18,24 +18,14 @@ auth_url = https://identity.api.rackspacecloud.com/v2.0
 region = $rsRegion
 snet = True
 EOF
-#
-# cat > /root/container_list << EOF
-# $containers
-# EOF
-    # for vers in ${supported_ubuntu_vers[@]}; do
-    # if [ ${os_majorver} == "${vers}" ]
-    #     then
-    #     supported=true
-    #
-    # fi; done
 
-cntrs_to_delete="$containers"
+cntrs_to_delete="$containersToDelete"
 
 IFS=","
 
 containers_array=( ${cntrs_to_delete} )
 
-printf "%s\n" "array slice ${containers_array[1]}" >> /root/containers_list
+printf "%s\n" "${containers_array[@]}" >> /root/containers_list
 
-# for cntr in ${containers_array[@]}; do
-#     swiftly -v --cache-auth --eventlet --concurrency=100 delete $cntr --until-empty --recursive; done
+for cntr in ${containers_array[@]}; do
+  screen -LdmS $cntr bash -c "swiftly -v --conf="/root/.swiftly.conf" --cache-auth --eventlet --concurrency=100 delete $cntr --until-empty --recursive; exec bash"; done

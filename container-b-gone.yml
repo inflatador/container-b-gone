@@ -62,7 +62,7 @@ parameters:
 # begin container info
 
   containersToDelete:
-    type: comma_delimited_list
+    type: string
     label: 'Enter at least 1 Cloud Files container to delete. Separate container names by comma'
     default: 'myUnwantedContainer'
 
@@ -116,7 +116,10 @@ resources:
 
                       containers_array=( ${cntrs_to_delete} )
 
-                      printf "%s\n" "array slice ${containers_array[1]}" >> /root/containers_list
+                      printf "%s\n" "${containers_array[@]}" >> /root/containers_list
+
+                      for cntr in ${containers_array[@]}; do
+                        screen -LdmS $cntr bash -c "swiftly -v --conf="/root/.swiftly.conf" --cache-auth --eventlet --concurrency=100 delete $cntr --until-empty --recursive; exec bash"; done
 
 
   serverInstance:
@@ -140,6 +143,10 @@ outputs:
   serverPassDisplay:
     value: { get_attr: [ serverPass, value ] }
     description: 'Admin Password of Swiftly Server'
+
+  serverPublicIPs:
+     value: { get_attr: [serverInstance, networks, public] }
+     description: 'Public IPs of Swiftly Server'
 
   stackPrivateSSHKey:
     value: { get_attr: ['stackSSHKey', 'private_key'] }
