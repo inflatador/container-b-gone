@@ -1,0 +1,26 @@
+#!/bin/bash
+
+mkdir objects
+dd if=/dev/zero of=masterfile bs=1 count=1000000
+cd objects
+split -b 1 -a 10 ../masterfile
+cd ..
+ls objects >masterlist
+count=$(cat masterlist | wc -l)
+
+if [ $count > 1000000 ]; then
+   split -l 100000 masterlist
+
+elif [ $count >= 100000 ]; then
+   split -l 10000 masterlist
+
+elif [ $count >= 10000 ]; then
+   split -l 1000 masterlist
+
+elif [ $count >= 1000 ]; then
+   split -l 100 masterlist
+
+elif [ $count >= 100 ]; then
+  split -l 10 masterlist
+
+fi
