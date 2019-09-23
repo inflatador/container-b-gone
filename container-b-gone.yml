@@ -2,11 +2,11 @@
 heat_template_version: 2015-10-15
 
 description: |
-   #### Creates 2 GB General Purpose cloud server
+   #### Creates Rackspace Cloud Server
    #### Installs/configures swiftly, then removes Cloud Files containers.
    #### You must build in the same region as your Cloud Files containers.
    #### Author: Brian King
-   #### version: 0.0.1a
+   #### version: 0.0.2a
    #### last modified: 2019-09-21
 
 parameter_groups:
@@ -17,9 +17,13 @@ parameter_groups:
 
 - label: Account info
   parameters:
-    - rsUsername
+    - rsUserName
     - rsRegion
     - rsApiKey
+
+- label: Server info
+  parameters:
+    - serverFlavor
 
 - label: Container info
   parameters:
@@ -36,15 +40,16 @@ parameters:
 
 # begin account info
 
-  rsUsername:
+  rsUserName:
     type: string
-    default: rsUsername
+    default: rsUserName
     label: Your Rackspace Cloud username
 
   rsRegion:
     type: string
     default: lon
-    label: Lower case Rackspace Cloud region which hosts containers you wish to delete.
+    label: Rackspace Cloud Region
+    description: 'Use the region which hosts the Cloud Files you wish to delete.'
     constraints:
       - allowed_values:
         - dfw
@@ -57,14 +62,36 @@ parameters:
   rsApiKey:
     type: string
     default: rsApiKey
-    label: "Your Rackspace Cloud API key, found under username > My Profile & Settings > Security Settings"
+    label: 'Your Rackspace Cloud API key'
+    description: 'API key found under username > My Profile & Settings > Security Settings'
 
 # begin container info
 
   containersToDelete:
     type: string
     label: 'Enter at least 1 Cloud Files container to delete. Separate container names by comma'
-    default: 'myUnwantedContainer'
+    default: 'myUnwantedContainer01,myUnwantedContainer02'
+
+# begin server info
+
+  serverFlavor:
+    type: string
+    default: 2 GB General Purpose v1
+    label: Server Flavor Name or ID (such as 4 GB General Purpose v1)
+    description: Choose flavor from list below
+    constraints:
+    - allowed_values:
+      - 15 GB Memory v1
+      - 30 GB Memory v1
+      - 60 GB Memory v1
+      - 120 GB Memory v1
+      - 240 GB Memory v1
+      - 1 GB General Purpose v1
+      - 2 GB General Purpose v1
+      - 4 GB General Purpose v1
+      - 8 GB General Purpose v1
+      description: must be a valid Rackspace Cloud Server flavor.
+
 
 resources:
 
@@ -77,6 +104,18 @@ resources:
       name: { get_param: "OS::stack_name" }
       save_private_key: true
 
+  serverBootVolume:
+    type: OS::Cinder::Volume
+    properties:
+      image: 'CentOS 7 (PVHVM)'
+      size: 50
+      volume_type: SSD
+      name:
+        str_replace:
+          params:
+            $user: { get_param: [ rsUserName ]}
+          template: $user-container-b-gone
+
   serverInstanceConfig:
      type: OS::Heat::SoftwareConfig
      properties:
@@ -84,7 +123,7 @@ resources:
        config:
          str_replace:
            params:
-             $rsUsername: { get_param: rsUsername }
+             $rsUserName: { get_param: rsUserName }
              $rsRegion: { get_param: rsRegion }
              $rsApiKey: { get_param: rsApiKey }
              $containersToDelete:  { get_param: containersToDelete }
@@ -103,7 +142,7 @@ resources:
 
                       cat > /root/.swiftly.conf << EOF
                       [swiftly]
-                      auth_user = $rsUsername
+                      auth_user = $rsUserName
                       auth_key = $rsApiKey
                       auth_url = https://identity.api.rackspacecloud.com/v2.0
                       region = $rsRegion
@@ -125,11 +164,18 @@ resources:
   serverInstance:
     type: OS::Nova::Server
     properties:
-      name: 'swiftly-server'
-      image: 'CentOS 7 (PVHVM)'
+      name:
+        str_replace:
+          params:
+            $user: { get_param: [ rsUserName ]}
+          template: $user-container-b-gone
+      block_device_mapping:
+        - device_name: vda
+          volume_id: { get_resource: serverBootVolume }
+          delete_on_termination: True
       admin_pass: { get_attr: [ serverPass, value ]}
       key_name: { get_resource: stackSSHKey }
-      flavor: general1-2
+      flavor: { get_param: serverFlavor }
       config_drive: True
       user_data: { get_resource: serverInstanceConfig }
       metadata:
@@ -153,5 +199,8 @@ outputs:
     description: 'private Key for accessing Swiftly Server'
 
   containersToDeleteDisplay:
-    value: { get_param: containersToDelete }
+    value:
+      str_split:
+        - ','
+        - { get_param: containersToDelete }
     description: 'containers specified to delete'
