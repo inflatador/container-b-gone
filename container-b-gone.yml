@@ -6,7 +6,7 @@ description: |
    #### Installs/configures swiftly, then removes Cloud Files containers.
    #### You must build in the same region as your Cloud Files containers.
    #### Author: Brian King
-   #### version: 0.0.1a
+   #### version: 0.0.2a
    #### last modified: 2019-09-21
 
 parameter_groups:
@@ -22,7 +22,8 @@ parameter_groups:
     - rsApiKey
 
 - label: Server info
-  parameters: serverFlavor
+  parameters:
+    - serverFlavor
 
 - label: Container info
   parameters:
@@ -69,7 +70,7 @@ parameters:
   containersToDelete:
     type: string
     label: 'Enter at least 1 Cloud Files container to delete. Separate container names by comma'
-    default: 'myUnwantedContainer'
+    default: 'myUnwantedContainer01,myUnwantedContainer02'
 
 # begin server info
 
@@ -167,7 +168,7 @@ resources:
         str_replace:
           params:
             $user: { get_param: [ rsUserName ]}
-        template: $user-container-b-gone
+          template: $user-container-b-gone
       block_device_mapping:
         - device_name: vda
           volume_id: { get_resource: serverBootVolume }
@@ -198,5 +199,8 @@ outputs:
     description: 'private Key for accessing Swiftly Server'
 
   containersToDeleteDisplay:
-    value: { get_param: containersToDelete }
+    value:
+      str_split:
+        - ','
+        - { get_param: containersToDelete }
     description: 'containers specified to delete'
