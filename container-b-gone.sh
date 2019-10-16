@@ -4,8 +4,15 @@
 # then creates a screen session per container
 # and deletes them using swiftly commands
 # copyright 2019 Brian King
-# version: 0.0.1a
+# version: 0.0.2a
 # license: Apache
+
+#adding swap just in case
+fallocate -l 2G  /.SWAPFILE
+chmod 0600 /.SWAPFILE
+mkswap /.SWAPFILE
+swapon /.SWAPFILE
+printf "%s\n" "/.SWAPFILE swap swap defaults 0 0" >> /etc/fstab
 
 yum -y install python-pip screen
 pip install swiftly eventlet
