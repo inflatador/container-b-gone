@@ -6,8 +6,8 @@ description: |
    #### Installs/configures swiftly, then removes Cloud Files containers.
    #### You must build in the same region as your Cloud Files containers.
    #### Author: Brian King
-   #### version: 0.0.2a
-   #### last modified: 2019-09-21
+   #### version: 0.0.3a
+   #### last modified: 2020-03-25
 
 parameter_groups:
 
@@ -66,6 +66,12 @@ parameters:
     description: 'API key found under username > My Profile & Settings > Security Settings'
 
 # begin container info
+
+  removeAllContainers:
+  type: Boolean
+  default: False
+  label: 'Whether to delete all containers in a particular region'
+  description: 'Delete all containers in region?'
 
   containersToDelete:
     type: string

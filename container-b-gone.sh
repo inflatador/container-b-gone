@@ -35,4 +35,4 @@ containers_array=( ${cntrs_to_delete} )
 printf "%s\n" "${containers_array[@]}" >> /root/containers_list
 
 for cntr in ${containers_array[@]}; do
-  screen -LdmS $cntr bash -c "swiftly -v --conf="/root/.swiftly.conf" --cache-auth --eventlet --concurrency=100 delete $cntr --until-empty --recursive; exec bash"; done
+  screen -LdmS $cntr bash -c "swiftly -v --conf="/root/.swiftly.conf" --cache-auth --eventlet --concurrency=100 delete $cntr --until-empty --recursive"; done
